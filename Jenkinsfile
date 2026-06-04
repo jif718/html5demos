@@ -14,15 +14,18 @@ pipeline {
         stage('Static Files Check') {
             agent { label 'python' }
             steps {
-                sh '''
-                    echo "=== check index.html exists ==="
-                    test -f index.html && echo "index.html found" || { echo "index.html missing!"; exit 1; }
+                // Must run inside the python container; the default sh lands in
+                // the jnlp container, which only has Java + git (no python3).
+                container('python') {
+                    sh '''
+                        echo "=== check index.html exists ==="
+                        test -f index.html && echo "index.html found" || { echo "index.html missing!"; exit 1; }
 
-                    echo "=== directory structure ==="
-                    find . -maxdepth 2 -not -path "./.git/*" | sort
+                        echo "=== directory structure ==="
+                        find . -maxdepth 2 -not -path "./.git/*" | sort
 
-                    echo "=== basic HTML structure check ==="
-                    python -c "
+                        echo "=== basic HTML structure check ==="
+                        python3 -c "
 from html.parser import HTMLParser
 class Checker(HTMLParser):
     def __init__(self):
@@ -42,7 +45,8 @@ if checker.errors:
 else:
     print('index.html structure check passed')
 "
-                '''
+                    '''
+                }
             }
         }
 
